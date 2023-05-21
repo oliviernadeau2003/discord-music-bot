@@ -81,14 +81,14 @@ async def play_song(ctx, voice_client):
     # Jouer la musique
     voice_client.play(discord.FFmpegPCMAudio(file_path), after=lambda e: bot.loop.create_task(on_song_end(ctx, voice_client, file_path)))
     voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
-    voice_client.source.volume = 0.5
+    # voice_client.source.volume = 0.5
 
     # Afficher le titre de la musique en cours de lecture
     await ctx.send(f'Now playing: {song_title}')
 
     # Retirer la musique de la liste d'attente
-    queue.pop(0)
-
+    if len(queue) > 0:
+        queue.pop(0)
 
 async def on_song_end(ctx, voice_client, file_path):
     # Supprimer le fichier audio de la musique
