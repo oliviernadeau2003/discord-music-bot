@@ -36,15 +36,18 @@ from discord.ext import commands
 
 intents = discord.Intents.default()
 intents.voice_states = True
-intents.message_content = True  # Ajout de cette ligne pour autoriser les messages privilégiés
-
+intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-song_queue:list = []
+song_queue = []
+
+
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
+
+
 
 @bot.command()
 async def play(ctx, url):
@@ -55,18 +58,48 @@ async def play(ctx, url):
 
     voice_client = ctx.guild.voice_client
 
-    # Téléchargement de la vidéo YouTube
-    youtube = YouTube(url)
-    video = youtube.streams.get_audio_only()
-    video.download('./')
-    file_path = './' + video.default_filename
+    # try:
+    #     video = YouTube(url)
+    #     audio_stream = video.streams.filter(only_audio=True).first()
+    #     file_path = f"./{video.video_id}.mp4"
+    #     audio_stream.download(output_path="./", filename=video.video_id)
+    #     # Rest of the code...
+    
 
-    # Ajout de la musique à la liste d'attente
-    song_queue.append((file_path, youtube.title))
+    #     if os.path.exists(file_path):
+    #         # Renommer le fichier uniquement s'il existe
+    #         os.rename(file_path, file_path + ".mp4")
+    #         file_path = file_path + ".mp4"
+    #         # Ajout de la musique à la liste d'attente
+    #         song_queue.append((file_path, video.title))
 
-    if len(song_queue) == 1:
-        # Si la liste d'attente est vide, commence la lecture immédiatement
-        await play_song(ctx, voice_client)
+    #         if len(song_queue) == 1:
+    #             # Si la liste d'attente est vide, commence la lecture immédiatement
+    #             await play_song(ctx, voice_client)
+    #     else:
+    #         await ctx.send("An error occurred while downloading the video.")
+    
+    # except Exception as e:
+    #     await ctx.send(f"An error occurred while downloading the video: {str(e)}")
+    
+    
+    video = YouTube(url)
+    audio_stream = video.streams.filter(only_audio=True).first()
+    file_path = f"./{video.video_id}.mp4"
+    audio_stream.download(output_path="./", filename=video.video_id + ".mp4")
+
+
+    if os.path.exists(file_path):
+        # Ajout de la musique à la liste d'attente
+        song_queue.append((file_path, video.title))
+
+        if len(song_queue) == 1:
+            # Si la liste d'attente est vide, commence la lecture immédiatement
+            await play_song(ctx, voice_client)
+    # else:
+    #     await ctx.send("An error occurred while downloading the video.")
+
+
 
 async def play_song(ctx, voice_client):
     if len(song_queue) == 0:
@@ -74,14 +107,13 @@ async def play_song(ctx, voice_client):
 
     file_path, song_title = song_queue[0]
 
-    if voice_client.is_playing() or voice_client.is_paused():
-        # Si le bot est déjà en train de jouer de l'audio, ne rien faire
-        return
+    # if voice_client.is_playing() or voice_client.is_paused():
+    #     # Si le bot est déjà en train de jouer de l'audio, ne rien faire
+    #     return
 
     # Jouer la musique
     voice_client.play(discord.FFmpegPCMAudio(file_path), after=lambda e: bot.loop.create_task(on_song_end(ctx, voice_client, file_path)))
     voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
-    # voice_client.source.volume = 0.5
 
     # Afficher le titre de la musique en cours de lecture
     await ctx.send(f'Now playing: {song_title}')
@@ -89,6 +121,8 @@ async def play_song(ctx, voice_client):
     # Retirer la musique de la liste d'attente
     if len(song_queue) > 0:
         song_queue.pop(0)
+
+
 
 async def on_song_end(ctx, voice_client, file_path):
     # Supprimer le fichier audio de la musique
@@ -102,9 +136,6 @@ async def on_song_end(ctx, voice_client, file_path):
         await voice_client.disconnect()
 
 
-async def cleanup_song(file_path):
-    # Supprimer le fichier audio de la musique
-    os.remove(file_path)
 
 @bot.command()
 async def skip(ctx):
@@ -127,13 +158,13 @@ async def skip(ctx):
         await cleanup_song(song_queue[0][0])
 
 
+
 @bot.command()
 async def leave(ctx):
     voice_client = ctx.guild.voice_client
     if voice_client:
-        if len(song_queue) > 0:
-            await cleanup_song(song_queue[0][0])
         await voice_client.disconnect()
+
 
 
 @bot.command()
@@ -146,13 +177,14 @@ async def stop(ctx):
         if len(song_queue) > 0:
             await cleanup_song(song_queue[0][0])
 
+
+
 @bot.command()
 async def queue(ctx):
     # Construction du message de la file d'attente
     song_queue_message = "Current Song Queue:\n"
     for index, music in enumerate(song_queue, start=0):
-        song_title:str = music
-        song_title = song_title[index].replace("./", "").replace(".mp4", "")
+        song_title = music[1]
         song_queue_message += f"{index+1}. {song_title}\n" 
 
     # Envoi du message de file d'attente dans le canal où la commande a été exécutée
@@ -160,5 +192,15 @@ async def queue(ctx):
 
 
 
+async def cleanup_song(file_path):
+    # Supprimer le fichier audio de la musique
+    os.remove(file_path)
+
+
+
 bot.run(os.getenv("TOKEN"))
 # bot.run("")
+
+
+
+
